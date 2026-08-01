@@ -57,6 +57,17 @@ spec:
               port: 27017
             initialDelaySeconds: 10
             periodSeconds: 10
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+          # NOTE: kept running as the image default (not runAsNonRoot) to avoid EBS fsGroup
+          # ownership issues on the proven-working DB. See HARDENING.md for the full-non-root path.
       volumes:
         - name: init
           configMap:

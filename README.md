@@ -83,11 +83,13 @@ bash scripts/99-destroy.sh             # tear it ALL down when done
 ## Submission checklist (from the brief)
 
 - [x] Source code in the root + Dockerfile
-- [ ] Architecture + CI/CD **diagram (draw.io)** — see `ARCHITECTURE.md` (export the draw.io PNG/`.drawio` here)
+- [x] Architecture + CI/CD **diagram (draw.io)** — `ARCHITECTURE.drawio` (open/edit at app.diagrams.net) + `ARCHITECTURE.md` (mermaid)
 - [x] `README.md` describing the project
 - [x] Folder with the **Terraform modules / eksctl yaml** (`eksctl/`)
 - [x] Folder with the **Kubernetes manifests** (`k8s/`)
-- [ ] Folder with **screenshots** of the running app (`screenshots/` — add before submitting)
+- [x] Folder with **screenshots** of the running app (`screenshots/`)
+
+Hardening notes + deliberate trade-offs: `HARDENING.md`. Live deploy evidence: `DEPLOY-RESULTS.md` + `screenshots/DEPLOY-EVIDENCE.md`.
 
 ## Troubleshooting
 

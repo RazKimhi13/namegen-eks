@@ -109,3 +109,11 @@ dist
 # local-only (not for submission)
 reference/
 docs/PRACTICE-PROJECT-pacman.md
+
+# security belt-and-suspenders
+*.pem
+*.key
+kubeconfig*
+.aws/
+
+QA-TODO.md

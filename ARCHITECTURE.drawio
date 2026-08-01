@@ -1,0 +1,37 @@
+<mxfile host="app.diagrams.net" type="device">
+  <diagram id="namegen-eks" name="namegen on EKS">
+    <mxGraphModel dx="1100" dy="760" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="826" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="t1" value="CI/CD pipeline:  push to main  →  build  →  ECR  →  EKS (rolling update)" style="text;html=1;fontStyle=1;fontSize=14;align=left;" vertex="1" parent="1"><mxGeometry x="40" y="20" width="700" height="24" as="geometry"/></mxCell>
+        <mxCell id="p1" value="Developer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="40" y="60" width="120" height="50" as="geometry"/></mxCell>
+        <mxCell id="p2" value="GitHub repo&#10;RazKimhi13/namegen-eks" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="220" y="60" width="150" height="50" as="geometry"/></mxCell>
+        <mxCell id="p3" value="GitHub Actions&#10;(OIDC / access-key)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="430" y="60" width="150" height="50" as="geometry"/></mxCell>
+        <mxCell id="p4" value="Amazon ECR&#10;repo: namegen" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1"><mxGeometry x="650" y="60" width="150" height="50" as="geometry"/></mxCell>
+        <mxCell id="p5" value="EKS cluster&#10;namegen-cluster" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1"><mxGeometry x="870" y="60" width="150" height="50" as="geometry"/></mxCell>
+        <mxCell id="e1" value="git push main" style="endArrow=block;html=1;" edge="1" parent="1" source="p1" target="p2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e2" value="trigger" style="endArrow=block;html=1;" edge="1" parent="1" source="p2" target="p3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e3" value="build + push image" style="endArrow=block;html=1;" edge="1" parent="1" source="p3" target="p4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e4" value="kubectl set image" style="endArrow=block;html=1;dashed=1;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" edge="1" parent="1" source="p3" target="p5"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="505" y="140"/><mxPoint x="945" y="140"/></Array></mxGeometry></mxCell>
+
+        <mxCell id="t2" value="Runtime on EKS Auto Mode  (namespace: namegen)" style="text;html=1;fontStyle=1;fontSize=14;align=left;" vertex="1" parent="1"><mxGeometry x="40" y="230" width="600" height="24" as="geometry"/></mxCell>
+        <mxCell id="box" value="" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#82b366;verticalAlign=top;" vertex="1" parent="1"><mxGeometry x="200" y="260" width="720" height="260" as="geometry"/></mxCell>
+        <mxCell id="r0" value="User&#10;(internet)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1"><mxGeometry x="40" y="300" width="120" height="50" as="geometry"/></mxCell>
+        <mxCell id="r1" value="AWS NLB&#10;internet-facing" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1"><mxGeometry x="230" y="300" width="130" height="50" as="geometry"/></mxCell>
+        <mxCell id="r2" value="Service: namegen&#10;type=LoadBalancer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="400" y="300" width="150" height="50" as="geometry"/></mxCell>
+        <mxCell id="r3" value="Deployment: namegen&#10;2 replicas · :8080" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="600" y="300" width="160" height="50" as="geometry"/></mxCell>
+        <mxCell id="r4" value="Service: mongodb&#10;headless" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="400" y="420" width="150" height="50" as="geometry"/></mxCell>
+        <mxCell id="r5" value="StatefulSet: mongodb&#10;mongo:3.6 · :27017" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1"><mxGeometry x="600" y="420" width="160" height="50" as="geometry"/></mxCell>
+        <mxCell id="r6" value="EBS gp3 PV&#10;(encrypted, survives pod delete)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1"><mxGeometry x="800" y="420" width="180" height="50" as="geometry"/></mxCell>
+        <mxCell id="f0" value="http :80" style="endArrow=block;html=1;" edge="1" parent="1" source="r0" target="r1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="f1" value="" style="endArrow=block;html=1;" edge="1" parent="1" source="r1" target="r2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="f2" value="selector app=namegen" style="endArrow=block;html=1;" edge="1" parent="1" source="r2" target="r3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="f3" value="MONGODB_URL → mongodb:27017" style="endArrow=block;html=1;" edge="1" parent="1" source="r3" target="r4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="f4" value="" style="endArrow=block;html=1;" edge="1" parent="1" source="r4" target="r5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="f5" value="volumeClaimTemplates" style="endArrow=block;html=1;" edge="1" parent="1" source="r5" target="r6"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

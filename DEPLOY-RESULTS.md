@@ -28,10 +28,11 @@ plane + 2 Auto Mode nodes + 1 NLB + one 8 GiB EBS volume) ≈ a few cents.
 - Repo `RazKimhi13/namegen-eks` (private), default branch `main`.
 - **`deploy-accesskeys.yml` (IAM user access keys — the officially taught path) ran GREEN**
   (run `30692550577`, `build-and-deploy (access keys) → success`): OIDC-free auth → ECR login →
-  build → push → update-kubeconfig → apply → set image → rollout, all ✔. IAM user `namegen-ci` +
+  build → push → update-kubeconfig → apply → set image → rollout, all ✔. IAM user `namegen-ci` (the live run's
+  name; `scripts/02-setup-iam-user.sh` names it `namegen-github-actions` by default — either works) +
   EKS access entry (`AmazonEKSClusterAdminPolicy`); secrets `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`.
 - **`deploy.yml` (OIDC, the more-secure default) is correctly configured** (provider
-  `token.actions.githubusercontent.com`, role `namegen-github-actions`, trust `repo:RazKimhi13/namegen-eks:*`,
+  `token.actions.githubusercontent.com`, role `namegen-github-actions`, trust `repo:RazKimhi13/namegen-eks:ref:refs/heads/main`,
   aud `sts.amazonaws.com`, access entry) but its FIRST run failed with
   `Not authorized to perform sts:AssumeRoleWithWebIdentity` — this is AWS IAM's well-known
   **eventual-consistency delay** on a just-created OIDC provider/role, not a config error; a re-run a

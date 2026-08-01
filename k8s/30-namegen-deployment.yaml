@@ -1,8 +1,7 @@
 # The namegen web app (stateless) as a Deployment.
 # - CI overrides `image:` with the freshly-built ECR image via `kubectl set image` (rolling update).
-#   The default is a placeholder tag; a plain `kubectl apply` will ImagePull-fail until an image is
-#   set, so the deploy script / CI always run `set image` right after applying (see README).
-# - Port 8080 = the app's listen port. MONGODB_URL = the brief's exact connection string.
+# - initContainer waits for MongoDB so the app doesn't CrashLoop on first boot before the DB is up.
+# - resource requests/limits + a non-root securityContext (matches the non-root Dockerfile) for good hygiene.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -22,15 +21,38 @@ spec:
       labels:
         app: namegen
     spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000            # the 'node' user in the image (Dockerfile: USER node)
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: wait-for-mongo
+          image: busybox:1.36
+          command: ["sh", "-c", "until nc -z mongodb 27017; do echo waiting for mongodb; sleep 2; done"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
       containers:
         - name: namegen
           image: namegen:latest          # overridden by CI/deploy: <acct>.dkr.ecr.us-west-2.amazonaws.com/namegen:<sha>
+          imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 8080
           env:
             - name: MONGODB_URL
               value: "mongodb://genuser:password@mongodb/namegen"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
           readinessProbe:
             httpGet:
               path: /
