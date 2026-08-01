@@ -1,0 +1,17 @@
+# Runs ONCE on first DB init (mounted at /docker-entrypoint-initdb.d).
+# Creates the app user the brief's MONGODB_URL expects: genuser/password on the namegen DB,
+# so `mongodb://genuser:password@mongodb/namegen` authenticates correctly.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongodb-init
+  namespace: namegen
+data:
+  init-namegen-user.js: |
+    db = db.getSiblingDB('namegen');
+    db.createUser({
+      user: 'genuser',
+      pwd: 'password',
+      roles: [{ role: 'readWrite', db: 'namegen' }]
+    });
+    db.createCollection('persons');

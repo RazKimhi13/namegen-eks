@@ -1,0 +1,23 @@
+# EKS cluster - Infrastructure-as-Code template (eksctl, EKS Auto Mode)
+# This is the "basic template" Fadi used in s39/s40: name + region + auto mode.
+# Auto Mode = AWS auto-provisions the worker node group (an Auto Scaling group),
+# plus built-in EBS storage + AWS Load Balancer integration + cluster DNS.
+#
+# Create:  eksctl create cluster -f eksctl/cluster.yaml
+# Connect: aws eks update-kubeconfig --region us-west-2 --name namegen-cluster
+# Delete:  eksctl delete cluster -f eksctl/cluster.yaml     (tears down the whole CloudFormation stack)
+#
+# ⚠️ COST: ~$0.10/hr for the control plane + the EC2 worker nodes + the load balancer.
+#          NEVER leave it running. create -> work -> delete.
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: namegen-cluster
+  region: us-west-2          # Oregon (what Fadi used - cheap, all services available)
+  version: "1.31"
+
+# EKS Auto Mode - AWS manages the node group, EBS CSI, and the AWS Load Balancer controller.
+autoModeConfig:
+  enabled: true
+  # nodePools: ["general-purpose", "system"]   # default pools; uncomment to be explicit

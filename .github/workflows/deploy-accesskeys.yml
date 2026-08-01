@@ -1,0 +1,53 @@
+# ALTERNATIVE CI/CD workflow using IAM user Access Keys (matches the official "DevOps - Step by Step").
+# To use THIS instead of the OIDC deploy.yml: delete/disable deploy.yml, run scripts/02-setup-iam-user.sh,
+# and set the repo secrets AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY.
+# (deploy.yml with OIDC is the more secure option and is recommended - pick ONE.)
+name: build-and-deploy (access keys)
+
+on:
+  workflow_dispatch: {}          # disabled on push by default so it doesn't clash with deploy.yml
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: us-west-2
+  ECR_REPOSITORY: namegen
+  EKS_CLUSTER: namegen-cluster
+  K8S_NAMESPACE: namegen
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (access keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to ECR
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          IMAGE="$REGISTRY/$ECR_REPOSITORY:${{ github.sha }}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Update kubeconfig
+        run: aws eks update-kubeconfig --region "$AWS_REGION" --name "$EKS_CLUSTER"
+
+      - name: Apply manifests and roll out
+        run: |
+          kubectl apply -f k8s/
+          kubectl set image deployment/namegen namegen="$IMAGE" -n "$K8S_NAMESPACE"
+          kubectl rollout status deployment/namegen -n "$K8S_NAMESPACE" --timeout=180s

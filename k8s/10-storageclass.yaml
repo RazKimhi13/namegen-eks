@@ -1,0 +1,23 @@
+# EBS StorageClass for EKS Auto Mode (pattern matches the class reference solution).
+# - provisioner ebs.csi.eks.amazonaws.com  = the Auto Mode EBS driver
+# - allowedTopologies pins volumes to Auto Mode compute nodes (needed for binding in Auto Mode)
+# - marked default so PVCs without an explicit class still use it
+# The Mongo StatefulSet's volumeClaimTemplates reference this by name (ebs-gp3).
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: ebs-gp3
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+allowedTopologies:
+  - matchLabelExpressions:
+      - key: eks.amazonaws.com/compute-type
+        values:
+          - auto
+provisioner: ebs.csi.eks.amazonaws.com
+volumeBindingMode: WaitForFirstConsumer
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+parameters:
+  type: gp3
+  encrypted: "true"

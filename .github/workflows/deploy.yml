@@ -1,0 +1,54 @@
+# CI/CD: on every push to main -> build the namegen image -> push to ECR -> deploy to EKS (rolling update).
+# Auth uses GitHub OIDC (NO long-lived AWS keys). Set up the role once with scripts/02-setup-github-oidc.sh,
+# then put the role ARN in the repo secret AWS_ROLE_ARN.
+name: build-and-deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write              # REQUIRED for GitHub OIDC -> AWS
+  contents: read
+
+env:
+  AWS_REGION: us-west-2
+  ECR_REPOSITORY: namegen
+  EKS_CLUSTER: namegen-cluster
+  K8S_NAMESPACE: namegen
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC - no static keys)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to ECR
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          IMAGE="$REGISTRY/$ECR_REPOSITORY:${{ github.sha }}"
+          docker build -t "$IMAGE" .        # Dockerfile + source are in the repo root
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+
+      - name: Update kubeconfig for the EKS cluster
+        run: aws eks update-kubeconfig --region "$AWS_REGION" --name "$EKS_CLUSTER"
+
+      - name: Apply manifests and roll out the new image
+        run: |
+          kubectl apply -f k8s/
+          kubectl set image deployment/namegen namegen="$IMAGE" -n "$K8S_NAMESPACE"
+          kubectl rollout status deployment/namegen -n "$K8S_NAMESPACE" --timeout=180s

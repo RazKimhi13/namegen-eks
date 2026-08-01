@@ -1,0 +1,23 @@
+# Expose namegen to the internet via a LoadBalancer Service -> NLB (the brief requires an NLB).
+# EKS Auto Mode's built-in AWS Load Balancer controller reads these annotations and provisions an
+# internet-facing Network Load Balancer wired to the pods.
+#   kubectl get svc namegen -n namegen -o wide   # EXTERNAL-IP = the NLB DNS name
+apiVersion: v1
+kind: Service
+metadata:
+  name: namegen
+  namespace: namegen
+  labels:
+    app: namegen
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+spec:
+  type: LoadBalancer
+  selector:
+    app: namegen
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP

@@ -1,0 +1,45 @@
+# The namegen web app (stateless) as a Deployment.
+# - CI overrides `image:` with the freshly-built ECR image via `kubectl set image` (rolling update).
+#   The default is a placeholder tag; a plain `kubectl apply` will ImagePull-fail until an image is
+#   set, so the deploy script / CI always run `set image` right after applying (see README).
+# - Port 8080 = the app's listen port. MONGODB_URL = the brief's exact connection string.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: namegen
+  namespace: namegen
+  labels:
+    app: namegen
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: namegen
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: namegen
+    spec:
+      containers:
+        - name: namegen
+          image: namegen:latest          # overridden by CI/deploy: <acct>.dkr.ecr.us-west-2.amazonaws.com/namegen:<sha>
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: MONGODB_URL
+              value: "mongodb://genuser:password@mongodb/namegen"
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20

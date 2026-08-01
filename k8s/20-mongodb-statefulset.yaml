@@ -1,0 +1,72 @@
+# MongoDB 3.6 as a StatefulSet + Persistent Volume (the brief's stateful requirement).
+# - Headless Service named "mongodb" -> the app's MONGODB_URL host (mongodb) resolves to the pod.
+# - volumeClaimTemplates -> each pod gets its OWN EBS volume (PVC mongo-db-mongodb-0) that
+#   SURVIVES pod deletion/rescheduling. A plain Deployment would lose the saved names.
+# - The init ConfigMap creates the genuser/password account on the namegen DB on first boot.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb
+  namespace: namegen
+  labels:
+    app: mongodb
+spec:
+  clusterIP: None            # headless - stable network identity for the StatefulSet
+  ports:
+    - name: mongodb
+      port: 27017
+      targetPort: 27017
+  selector:
+    app: mongodb
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongodb
+  namespace: namegen
+  labels:
+    app: mongodb
+spec:
+  serviceName: mongodb
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers:
+        - name: mongodb
+          image: mongo:3.6                 # pinned per the brief
+          ports:
+            - name: mongodb
+              containerPort: 27017
+          env:
+            - name: MONGO_INITDB_DATABASE
+              value: namegen
+          volumeMounts:
+            - name: mongo-db
+              mountPath: /data/db
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+          readinessProbe:
+            tcpSocket:
+              port: 27017
+            initialDelaySeconds: 10
+            periodSeconds: 10
+      volumes:
+        - name: init
+          configMap:
+            name: mongodb-init
+  volumeClaimTemplates:
+    - metadata:
+        name: mongo-db
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: ebs-gp3
+        resources:
+          requests:
+            storage: 8Gi
