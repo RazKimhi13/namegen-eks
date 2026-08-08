@@ -14,6 +14,24 @@ cd "$(dirname "$0")/.."
 ACCOUNT_ID=$(aws sts get-caller-identity --profile "$PROFILE" --query Account --output text)
 echo ">> AWS account: $ACCOUNT_ID   repo: $GITHUB_REPO"
 
+# GitHub changed the OIDC subject format on 2026-07-15: the `sub` claim must now carry the
+# NUMERIC owner ID and repository ID as well as the names. Without them AWS rejects the
+# AssumeRoleWithWebIdentity call even though the trust policy looks correct. Fetch them.
+OWNER="${GITHUB_REPO%%/*}"
+REPO_NAME="${GITHUB_REPO##*/}"
+echo ">> Looking up GitHub owner/repository IDs (required since 2026-07-15)..."
+GH_JSON=$(curl -fsSL "https://api.github.com/repos/$GITHUB_REPO" \
+  ${GITHUB_TOKEN:+-H "Authorization: token $GITHUB_TOKEN"}) || {
+  echo "ERROR: could not read https://api.github.com/repos/$GITHUB_REPO"
+  echo "       For a PRIVATE repo: export GITHUB_TOKEN=\$(gh auth token)   then re-run."
+  exit 1
+}
+OWNER_ID=$(printf '%s' "$GH_JSON" | python -c "import sys,json;print(json.load(sys.stdin)['owner']['id'])")
+REPO_ID=$(printf  '%s' "$GH_JSON" | python -c "import sys,json;print(json.load(sys.stdin)['id'])")
+[ -n "$OWNER_ID" ] && [ -n "$REPO_ID" ] || { echo "ERROR: failed to parse the GitHub IDs."; exit 1; }
+echo ">> owner_id=$OWNER_ID  repo_id=$REPO_ID"
+echo ">> sub = repo:$OWNER@$OWNER_ID/$REPO_NAME@$REPO_ID:ref:refs/heads/main"
+
 # 1) GitHub OIDC identity provider (idempotent)
 if ! aws iam list-open-id-connect-providers --profile "$PROFILE" \
       --query 'OpenIDConnectProviderList[].Arn' --output text | grep -q token.actions.githubusercontent.com; then
@@ -28,7 +46,11 @@ fi
 
 # 2) Role trust + permission policies (fill placeholders from the JSON templates)
 TRUST=$(sed -e "s#<AWS_ACCOUNT_ID>#$ACCOUNT_ID#g" \
-            -e "s#<GITHUB_ORG>/<GITHUB_REPO>#$GITHUB_REPO#g" iam/github-oidc-trust-policy.json)
+            -e "s#<GITHUB_OWNER_ID>#$OWNER_ID#g" \
+            -e "s#<GITHUB_OWNER>#$OWNER#g" \
+            -e "s#<GITHUB_REPO_ID>#$REPO_ID#g" \
+            -e "s#<GITHUB_REPO>#$REPO_NAME#g" \
+            -e '/"_comment_/d' iam/github-oidc-trust-policy.json)
 PERMS=$(sed -e "s#<AWS_ACCOUNT_ID>#$ACCOUNT_ID#g" iam/github-actions-permissions.json)
 
 aws iam create-role --profile "$PROFILE" --role-name "$ROLE_NAME" \

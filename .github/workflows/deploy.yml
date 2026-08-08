@@ -27,10 +27,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Temporary credentials via STS AssumeRoleWithWebIdentity. The role's TRUST POLICY must use
+      # GitHub's post-2026-07-15 subject format (owner ID + repo ID) or this step fails with
+      # "Not authorized to perform sts:AssumeRoleWithWebIdentity" - see docs/GITHUB-OIDC-ASSUME-ROLE.md.
+      # (The instructor's guide pins @v6.2.3; v4 works too - the action version was never the issue.)
       - name: Configure AWS credentials (OIDC - no static keys)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-session-name: github-actions-${{ github.run_id }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Log in to Amazon ECR

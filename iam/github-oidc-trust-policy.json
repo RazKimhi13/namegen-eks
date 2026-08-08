@@ -1,4 +1,6 @@
 {
+  "_comment_1": "Trust policy for the GitHub Actions OIDC role. Placeholders are filled in by scripts/02-setup-github-oidc.sh (the _comment_* keys are stripped there; IAM ignores unknown top-level keys but we remove them anyway).",
+  "_comment_2": "GitHub changed the OIDC subject format on 2026-07-15. The `sub` claim must now include the NUMERIC owner ID and repository ID: repo:<owner>@<OWNER_ID>/<repo>@<REPO_ID>:ref:refs/heads/<branch>. AWS's console-generated template still omits them, which fails with 'Not authorized to perform sts:AssumeRoleWithWebIdentity'. GitHub also recommends StringEquals over StringLike. Look the IDs up at https://api.github.com/repos/<owner>/<repo> (fields .owner.id and .id).",
   "Version": "2012-10-17",
   "Statement": [
     {
@@ -9,10 +11,8 @@
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
         "StringEquals": {
-          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
-        },
-        "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:<GITHUB_ORG>/<GITHUB_REPO>:ref:refs/heads/main"
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+          "token.actions.githubusercontent.com:sub": "repo:<GITHUB_OWNER>@<GITHUB_OWNER_ID>/<GITHUB_REPO>@<GITHUB_REPO_ID>:ref:refs/heads/main"
         }
       }
     }
