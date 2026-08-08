@@ -36,6 +36,31 @@ flowchart TB
     pvc -->|dynamic provisioning\nebs.csi.eks.amazonaws.com| ebs[(EBS gp3 volume\nencrypted · survives pod delete)]
 ```
 
+## 3. Monitoring (Grafana + Prometheus, in-cluster)
+
+```mermaid
+flowchart TB
+    subgraph EKSM[EKS cluster · namespace: monitoring]
+        ksm[kube-state-metrics\nK8s object state] --> prom[Prometheus\ncollects + stores]
+        nex[node-exporter\nnode CPU/mem/disk] --> prom
+        prom -->|datasource| graf[Grafana\ndashboards · ClusterIP]
+    end
+    appns[namespace: namegen\nnamegen pods + mongodb] -.->|scraped| prom
+    graf -->|kubectl port-forward :3000\nNO public LoadBalancer| laptop[Your laptop browser]
+```
+
+**Prometheus collects, Grafana visualises — and both run as pods *inside* the cluster**, which is
+why they can read cluster metrics directly. Installed with **Helm** (`kube-prometheus-stack` chart
+from ArtifactHub); config in `monitoring/values.yaml`; also installed by a step in the CI/CD workflow.
+
+Grafana is deliberately **ClusterIP, not a LoadBalancer** — a dashboard holding every internal metric
+should not be on the public internet. Access is a private `kubectl port-forward` tunnel to `:3000`,
+run from a machine that has a browser. Full rationale: [`monitoring/README.md`](monitoring/README.md).
+
+> **CloudWatch vs this:** CloudWatch was built for AWS resources (EC2/EBS/S3), not for Kubernetes
+> objects — the Metrics Server add-on only partly bridges it. CloudWatch monitors *the cloud*;
+> Prometheus + Grafana monitor *the cluster*.
+
 **Why each piece:**
 - **EKS Auto Mode** — AWS runs the control plane + auto-provisions worker nodes, the EBS CSI driver,
   and the AWS Load Balancer controller. Pay $0.10/hr/cluster + nodes + LB.
@@ -62,3 +87,4 @@ flowchart TB
 | `ClusterConfig` | `eksctl/cluster.yaml` | **IaC** cluster (Auto Mode) |
 | GitHub Actions workflow | `.github/workflows/deploy.yml` | **CI/CD → ECR → EKS** |
 | OIDC role + policies | `iam/*.json` | **secure GitHub↔AWS** (no static keys) |
+| `kube-prometheus-stack` Helm release (ns `monitoring`) | `monitoring/values.yaml` | **monitoring dashboard with Grafana + Prometheus** |

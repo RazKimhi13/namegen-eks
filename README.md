@@ -18,6 +18,7 @@ Infrastructure-as-Code (`eksctl` Auto Mode) + declarative Kubernetes manifests.
 | **CI/CD via GitHub Actions** (auto build + deploy) | `.github/workflows/deploy.yml` (push → build → ECR → `kubectl set image`) |
 | Expose via a **Load Balancer (NLB)** | `k8s/40-namegen-service.yaml` (`type: LoadBalancer` + NLB annotations) |
 | DB as a **StatefulSet + Persistent Volumes** | `k8s/20-mongodb-statefulset.yaml` (`volumeClaimTemplates` → EBS gp3) |
+| **Monitoring dashboard with Grafana + Prometheus** | `monitoring/values.yaml` + `scripts/04-install-monitoring.sh` — Helm `kube-prometheus-stack` (Prometheus collects, Grafana visualises, both as in-cluster pods); also a step in the CI/CD workflow. Access via `scripts/05-grafana-portforward.sh`. See [`monitoring/README.md`](monitoring/README.md). |
 | Use **mongodb:3.6** | pinned in the StatefulSet |
 | App env `MONGODB_URL=mongodb://genuser:password@mongodb/namegen` | set in `k8s/30-namegen-deployment.yaml`; the init ConfigMap creates that user |
 
@@ -38,10 +39,15 @@ Infrastructure-as-Code (`eksctl` Auto Mode) + declarative Kubernetes manifests.
 │   ├── 20-mongodb-statefulset.yaml    ← mongodb:3.6 StatefulSet + headless Service + PV
 │   ├── 30-namegen-deployment.yaml     ← the app (MONGODB_URL, :8080)
 │   └── 40-namegen-service.yaml        ← NLB LoadBalancer
-├── .github/workflows/deploy.yml   ← CI/CD
+├── .github/workflows/deploy.yml   ← CI/CD (incl. the monitoring install step)
+├── monitoring/                ← Grafana + Prometheus (Helm kube-prometheus-stack)
+│   ├── values.yaml                   ← chart values (EKS-tuned, no persistence, ClusterIP)
+│   └── README.md                     ← what it is, why not CloudWatch, how to screenshot it
 ├── iam/                       ← GitHub OIDC trust policy + CI permission policy
-├── scripts/                   ← 00-create-ecr / 01-create-cluster / 02-setup-github-oidc / 03-build-and-deploy / 99-destroy
-└── screenshots/               ← screenshots of the running app (add before submitting)
+├── scripts/                   ← 00-create-ecr / 01-create-cluster / 02-setup-github-oidc /
+│                                03-build-and-deploy / 04-install-monitoring /
+│                                05-grafana-portforward / 99-destroy
+└── screenshots/               ← screenshots of the running app + the Grafana dashboard
 ```
 
 ## Prerequisites
@@ -59,6 +65,8 @@ bash scripts/00-create-ecr.sh          # create the ECR repo
 bash scripts/01-create-cluster.sh      # ~15-20 min: EKS Auto Mode cluster
 bash scripts/03-build-and-deploy.sh    # build image → push ECR → apply k8s → set image → print NLB URL
 # → open the EXTERNAL-IP (NLB DNS) in a browser; generate + save names; they persist in Mongo
+bash scripts/04-install-monitoring.sh  # Helm: Prometheus + Grafana into the cluster
+bash scripts/05-grafana-portforward.sh # prints the admin password, opens Grafana on :3000
 bash scripts/99-destroy.sh             # tear it ALL down when done
 ```
 
@@ -78,7 +86,8 @@ bash scripts/99-destroy.sh             # tear it ALL down when done
    ```bash
    git commit -am "deploy" && git push && gh run watch -R RazKimhi13/namegen-eks
    ```
-5. Grab **screenshots** of the green pipeline + the live app into `screenshots/`, then `scripts/99-destroy.sh`.
+5. Grab **screenshots** of the green pipeline + the live app + the Grafana dashboard into
+   `screenshots/`, then `scripts/99-destroy.sh`.
 
 ## Submission checklist (from the brief)
 
@@ -87,7 +96,8 @@ bash scripts/99-destroy.sh             # tear it ALL down when done
 - [x] `README.md` describing the project
 - [x] Folder with the **Terraform modules / eksctl yaml** (`eksctl/`)
 - [x] Folder with the **Kubernetes manifests** (`k8s/`)
-- [x] Folder with **screenshots** of the running app (`screenshots/`)
+- [x] **Monitoring dashboard (Grafana + Prometheus)** — `monitoring/` + install/access scripts + CI step
+- [ ] Folder with **screenshots** of the running app (`screenshots/`) — app shots present; **the Grafana dashboard shot still needs capturing on the next deploy**
 
 Hardening notes + deliberate trade-offs: `HARDENING.md`. Live deploy evidence: `DEPLOY-RESULTS.md` + `screenshots/DEPLOY-EVIDENCE.md`.
 

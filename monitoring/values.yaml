@@ -1,0 +1,120 @@
+# Helm values for kube-prometheus-stack on this EKS Auto Mode cluster.
+#
+# Chart:  prometheus-community/kube-prometheus-stack
+# Bundle: Prometheus (collects) + Grafana (visualises) + Alertmanager + node-exporter
+#         + kube-state-metrics. Everything runs INSIDE the cluster as pods.
+#
+# Tuned for a short-lived demo/project cluster: no persistence, short retention,
+# small resource requests, nothing exposed publicly.
+
+# ---------------------------------------------------------------------------
+# EKS-SPECIFIC: the control plane is managed by AWS and its components are NOT
+# reachable for scraping. Leaving these enabled produces permanently "down"
+# targets in Prometheus, which looks broken in a screenshot. Disable them.
+# ---------------------------------------------------------------------------
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+kubeProxy:
+  enabled: false          # EKS Auto Mode does not run a scrapeable kube-proxy
+
+# ---------------------------------------------------------------------------
+# Prometheus
+# ---------------------------------------------------------------------------
+prometheus:
+  prometheusSpec:
+    retention: 6h                     # short: this cluster is created and destroyed
+    scrapeInterval: 30s
+
+    # No PVC on purpose. A StatefulSet PVC here would provision an extra EBS
+    # volume that survives `helm uninstall` and quietly costs money - exactly the
+    # orphaned-volume trap. Metrics are ephemeral; that is fine for this project.
+    storageSpec: {}
+
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        memory: 1Gi
+
+    # Discover ServiceMonitors/PodMonitors from ALL namespaces (incl. `namegen`),
+    # not just ones carrying this release's label.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+  service:
+    type: ClusterIP                   # never exposed publicly - port-forward only
+
+# ---------------------------------------------------------------------------
+# Grafana
+# ---------------------------------------------------------------------------
+grafana:
+  enabled: true
+
+  # adminPassword is deliberately NOT set here. The chart generates one into a
+  # Kubernetes Secret; pull it with scripts/05-grafana-portforward.sh (or the
+  # command the chart prints). Never commit a password to the repo.
+
+  persistence:
+    enabled: false                    # same orphaned-EBS reasoning as above
+
+  service:
+    type: ClusterIP                   # NOT a LoadBalancer / NodePort.
+                                      # A monitoring dashboard should not be on
+                                      # the public internet - reach it with
+                                      # `kubectl port-forward` instead.
+
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+
+  # The chart ships a full set of Kubernetes dashboards out of the box
+  # (cluster / namespace / node / pod / workload views). Those are what the
+  # project screenshots use.
+  defaultDashboardsEnabled: true
+  defaultDashboardsTimezone: browser
+
+  # Optional: auto-import extra community dashboards from grafana.com by ID.
+  # Left commented because dashboard IDs drift - look the ID up on
+  # https://grafana.com/grafana/dashboards before enabling, and check it renders.
+  # dashboardProviders:
+  #   dashboardproviders.yaml:
+  #     apiVersion: 1
+  #     providers:
+  #       - name: default
+  #         orgId: 1
+  #         folder: ""
+  #         type: file
+  #         disableDeletion: false
+  #         editable: true
+  #         options:
+  #           path: /var/lib/grafana/dashboards/default
+  # dashboards:
+  #   default:
+  #     k8s-cluster:
+  #       gnetId: <VERIFY-ON-GRAFANA.COM>
+  #       revision: 1
+  #       datasource: Prometheus
+
+# ---------------------------------------------------------------------------
+# Alertmanager - not required by the project brief. Kept off to save resources
+# and keep the teardown clean. Flip to true if you want to demo alert routing.
+# ---------------------------------------------------------------------------
+alertmanager:
+  enabled: false
+
+# ---------------------------------------------------------------------------
+# Exporters that actually provide the cluster/pod/node metrics in the dashboards
+# ---------------------------------------------------------------------------
+nodeExporter:
+  enabled: true
+kubeStateMetrics:
+  enabled: true

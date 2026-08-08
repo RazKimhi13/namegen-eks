@@ -8,6 +8,12 @@ CLUSTER=namegen-cluster
 NS=namegen
 cd "$(dirname "$0")/.."
 
+echo ">> Uninstalling the monitoring stack (Grafana + Prometheus)..."
+# Ordered teardown. `values.yaml` disables persistence, so there are no monitoring PVCs to
+# leak - but uninstall first anyway so nothing is holding cluster resources open.
+helm uninstall monitoring -n monitoring 2>/dev/null || true
+kubectl delete namespace monitoring --ignore-not-found=true 2>/dev/null || true
+
 echo ">> Deleting k8s resources (releases the NLB + EBS volumes)..."
 kubectl delete -f k8s/ --ignore-not-found=true || true
 echo ">> Giving the AWS Load Balancer controller a moment to remove the NLB..."

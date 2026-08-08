@@ -17,6 +17,8 @@ env:
   ECR_REPOSITORY: namegen
   EKS_CLUSTER: namegen-cluster
   K8S_NAMESPACE: namegen
+  MONITORING_NAMESPACE: monitoring
+  INSTALL_MONITORING: "true"   # set "false" to skip the Grafana/Prometheus step
 
 jobs:
   deploy:
@@ -52,3 +54,18 @@ jobs:
           kubectl apply -f k8s/
           kubectl set image deployment/namegen namegen="$IMAGE" -n "$K8S_NAMESPACE"
           kubectl rollout status deployment/namegen -n "$K8S_NAMESPACE" --timeout=180s
+
+      # Monitoring (project requirement): Prometheus collects, Grafana visualises, both as
+      # pods inside the cluster. `helm upgrade --install` is idempotent, so this is a no-op
+      # once installed. The Grafana password + port-forward stay OUT of CI on purpose -
+      # a pipeline should never print a password into its logs.
+      - name: Install/upgrade monitoring stack (Grafana + Prometheus)
+        if: env.INSTALL_MONITORING == 'true'
+        run: |
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo update prometheus-community
+          helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+            --namespace "$MONITORING_NAMESPACE" --create-namespace \
+            --values monitoring/values.yaml \
+            --wait --timeout 10m
+          kubectl -n "$MONITORING_NAMESPACE" get pods

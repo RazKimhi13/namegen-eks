@@ -33,3 +33,7 @@ kubectl -n "$NS" rollout status deployment/namegen --timeout=180s
 echo ">> LoadBalancer (NLB EXTERNAL-IP can take 2-3 min to appear):"
 kubectl -n "$NS" get svc namegen -o wide
 echo ">> Open the EXTERNAL-IP (NLB DNS) in a browser on http:// port 80."
+echo
+echo ">> Monitoring (project requirement) is a separate step - run:"
+echo "     ./scripts/04-install-monitoring.sh     # Helm: Prometheus + Grafana into the cluster"
+echo "     ./scripts/05-grafana-portforward.sh    # password + dashboard on :3000"
