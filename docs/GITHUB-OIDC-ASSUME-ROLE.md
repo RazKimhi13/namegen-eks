@@ -15,7 +15,7 @@ noted alongside.
 - **Provider URL:** `https://token.actions.githubusercontent.com`
 - **Audience:** `sts.amazonaws.com`
 
-## 2. Create an IAM Role — Trusted entity type: **Web identity**
+## 2. Create an IAM Role - Trusted entity type: **Web identity**
 
 ### Permission policy (instructor's, for pacman)
 
@@ -52,7 +52,7 @@ noted alongside.
 }
 ```
 
-> **Ours:** [`../iam/github-actions-permissions.json`](../iam/github-actions-permissions.json) — same
+> **Ours:** [`../iam/github-actions-permissions.json`](../iam/github-actions-permissions.json) - same
 > three statements, scoped to `namegen-cluster` and the `namegen` ECR repo.
 
 ### Trust policy (instructor's)
@@ -78,7 +78,7 @@ noted alongside.
 }
 ```
 
-> ### ⚠️ This is the part that breaks — note the `sub` format
+> ### This is the part that breaks - note the `sub` format
 >
 > ```
 > repo:<owner>@<OWNER_ID>/<repo>@<REPOSITORY_ID>:ref:refs/heads/main
@@ -114,7 +114,7 @@ curl -s https://api.github.com/repos/RazKimhi13/namegen-eks \
 
 ## 4. Create an EKS **access entry** for the GitHub role
 
-With **`AmazonEKSClusterAdminPolicy`** — the role needs permissions *inside* Kubernetes, not just in
+With **`AmazonEKSClusterAdminPolicy`** - the role needs permissions *inside* Kubernetes, not just in
 IAM. See [`EKS-ACCESS-ENTRIES.md`](EKS-ACCESS-ENTRIES.md). (Access entries accept a **user, a group,
 or a role**; switching from key-based auth to OIDC means re-pointing the entry from the IAM *user* to
 the *role*.)
@@ -125,7 +125,7 @@ Add, directly under the trigger:
 
 ```yaml
 permissions:
-  id-token: write     # REQUIRED for OIDC — nothing works without it
+  id-token: write     # REQUIRED for OIDC - nothing works without it
   contents: read
 ```
 
@@ -140,17 +140,17 @@ And replace the access-key step with:
     aws-region: us-west-2
 ```
 
-> **Ours:** [`../.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) — same shape, with
+> **Ours:** [`../.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) - same shape, with
 > the role ARN kept in the repo secret `AWS_ROLE_ARN` rather than hard-coded. We pin
 > `configure-aws-credentials@v4`; the instructor landed on `v6.2.3` after trying several. The version
-> was **not** the cause of the failure (he confirmed v4 works too) — the trust-policy format was.
+> was **not** the cause of the failure (he confirmed v4 works too) - the trust-policy format was.
 > `role-session-name` includes `github.run_id` so each run opens a uniquely-named STS session.
 
 ---
 
 ## Why this instead of access keys
 
-Access keys are **permanent** and **carry no identity** — whoever holds them gets in, with no
+Access keys are **permanent** and **carry no identity** - whoever holds them gets in, with no
 verification of who they are. AssumeRole works like a passport: AWS trusts an external issuer
 (GitHub), verifies the caller, and **STS** issues **temporary** credentials tied to a role and a
 session, scoped to one repo and one branch.

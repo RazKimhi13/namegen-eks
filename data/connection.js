@@ -38,7 +38,10 @@ const closeConnection = async () => {
 }
 
 const getConnectionUrlSync = () => {
-    return `${process.env.MONGODB_URL}/${dbName}`;
+    const url = process.env.MONGODB_URL;
+    // don't append the db name twice if the URL already ends with it
+    if (url && url.substring(url.length - dbName.length) === dbName) return url;
+    return `${url}/${dbName}`;
 };
 
 module.exports = {getConnection, closeConnection, getConnectionUrlSync};

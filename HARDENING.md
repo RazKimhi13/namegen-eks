@@ -1,7 +1,7 @@
 # Hardening notes + deliberate trade-offs
 
-A full QA (4 review passes) ran on this repo. It deploys green and meets every brief requirement.
-This file records what was hardened and the trade-offs kept **on purpose** (mostly brief- or rubric-dictated).
+Notes from reviewing my own setup before submission. This file records what was hardened and the
+trade-offs I kept on purpose (mostly because the brief or the official step-by-step dictates them).
 
 ## Applied
 - **Dockerfile:** `node:20-alpine` (was EOL 18), non-root `USER node`, `npm ci` only (dropped the `|| npm install` fallback), `.dockerignore` so the build context can't bake in `.env`/junk.
@@ -29,5 +29,6 @@ This file records what was hardened and the trade-offs kept **on purpose** (most
    course **"DevOps - Step by Step"** instructs, so it's kept for the rubric. Least-privilege alternative:
    pre-create the Namespace + StorageClass at cluster-provision time, then grant the CI identity
    `AmazonEKSEditPolicy` scoped `type=namespace,namespaces=namegen` (the CI only `apply`s namespaced objects then).
-6. **eksctl, not Terraform.** The brief allows either; eksctl (Auto Mode) is used. A `terraform/` module is the
-   natural next addition once the course covers Terraform.
+6. **Two IaC paths are included** (`eksctl/` and `terraform/`) but only one should be used per cluster -
+   they are equivalents, not layers. The eksctl path was used for the recorded deploys; the Terraform
+   module additionally manages the OIDC role, access entries and ECR.

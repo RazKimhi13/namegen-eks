@@ -1,35 +1,18 @@
 # Screenshots
 
-- **01-namegen-app-running.png** — the namegen web app served over HTTP (title "Random Name Generator and Saver").
-- **02-namegen-generate-save-working.png** — the full flow: **Get Random Name** → **Save Name** → the name
-  persists and appears in "List of Names" ("Laila King: Name has been saved to database") — proving the app ↔
-  MongoDB round-trip works.
-- **DEPLOY-EVIDENCE.md** — text capture of the live AWS deploy (`kubectl get all -n namegen`, PVC Bound to an
-  8 GiB EBS volume, NLB URL, and the live API responses over the NLB).
+All taken during the live deploys on AWS (us-west-2). Details and raw command output:
+[`DEPLOY-EVIDENCE.md`](DEPLOY-EVIDENCE.md).
 
-(The app shots were taken running the exact built image + `mongo:3.6` locally via Docker; the same image the
-CI pipeline builds/pushes to ECR and deploys to EKS. Live AWS run is documented in `../DEPLOY-RESULTS.md`.)
+| File | Shows |
+|---|---|
+| `03-live-nlb-landing.png` | the app served over the internet-facing **NLB** URL |
+| `04-live-nlb-generate-save.png` | generate + save working against the API |
+| `05-live-nlb-persisted-after-reload.png` | saved names still listed **after a full page reload** - served from the MongoDB StatefulSet on its EBS Persistent Volume |
+| `07-grafana-cluster-dashboard.png` | **Grafana + Prometheus** (in-cluster, installed with Helm) - cluster compute dashboard with live data |
+| `08-grafana-namegen-namespace-dashboard.png` | per-pod CPU/memory for the `namegen` namespace (mongodb-0 + 2 app replicas) |
+| `09-github-actions-oidc-pipeline-green.png` | the **OIDC** CI/CD run green (Status: Success) |
+| `10-github-actions-oidc-job-steps.png` | every pipeline step green, including "Configure AWS credentials (OIDC - no static keys)" |
 
-## ⬜ Still to capture — the Grafana dashboard (required by the brief)
-
-The brief requires a **monitoring dashboard using Grafana + Prometheus**. The stack is built
-(`../monitoring/`) but **not yet screenshotted** — it needs a live cluster.
-
-On the next deploy:
-
-```bash
-bash scripts/01-create-cluster.sh       # if not already up
-bash scripts/03-build-and-deploy.sh
-bash scripts/04-install-monitoring.sh   # Helm: Prometheus + Grafana
-bash scripts/05-grafana-portforward.sh  # prints password, forwards :3000
-#   ↑ run this on your LAPTOP (Git Bash / WSL) — CloudShell has no browser
-```
-
-Then open <http://127.0.0.1:3000> and capture, as `03-grafana-dashboard.png` (and optionally more):
-
-- **Dashboards → General → "Kubernetes / Compute Resources / Cluster"** — the headline shot
-- **"Kubernetes / Compute Resources / Namespace (Pods)"** with namespace set to **`namegen`** —
-  shows the 3 app pods + the MongoDB StatefulSet under monitoring
-- optionally **"Node Exporter / Nodes"** for node CPU/memory/disk
-
-Then `bash scripts/99-destroy.sh` — one cluster spin-up covers the app shots and the Grafana shot.
+Grafana was accessed with `kubectl port-forward svc/monitoring-grafana 3000:80` (it is ClusterIP on
+purpose - the dashboard is never exposed to the internet); the admin password comes from the
+`monitoring-grafana` Secret. See [`../monitoring/README.md`](../monitoring/README.md).

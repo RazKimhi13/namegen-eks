@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Create the EKS Auto Mode cluster from the IaC template, then wire up kubectl.
-# ⚠️ Takes ~15-20 min and starts billing (~$0.10/hr control plane + nodes). Tear down with 99-destroy.sh.
+# NOTE: Takes ~15-20 min and starts billing (~$0.10/hr control plane + nodes). Tear down with 99-destroy.sh.
 set -euo pipefail
 PROFILE=personal
 REGION=us-west-2

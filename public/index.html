@@ -4,8 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>namegen - Random Name Generator</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23274b63'/%3E%3Ctext x='16' y='22' font-family='sans-serif' font-size='16' font-weight='700' fill='%23cfe3f5' text-anchor='middle'%3En%3C/text%3E%3C/svg%3E">
 <style>
-  /* the-folder design tokens (dark, OKLCH) */
+  /* dark theme tokens (OKLCH) */
   :root {
     --bg-canvas: oklch(0.169 0.002 230.81);
     --bg-1:      oklch(0.193 0.002 230.81);
@@ -144,7 +145,7 @@
   </header>
 
   <section class="card">
-    <h2>1 - Generate</h2>
+    <h2>Generate a name</h2>
     <div class="actions">
       <button type="button" id="btnRandom" class="btn btn-primary" onclick="getRandomName()">Get random name</button>
       <button type="button" id="btnSave" class="btn" onclick="saveName()" disabled>Save to database</button>
@@ -165,7 +166,7 @@
 
   <section class="card">
     <h2>Danger zone</h2>
-    <button type="button" class="btn" onclick="clearNames()">Clear all names from DB</button>
+    <button type="button" id="btnClear" class="btn" onclick="clearNames()">Clear all names from DB</button>
   </section>
 
   <p class="footer">namegen on EKS - Mongo StatefulSet + EBS - GitHub Actions to ECR to EKS</p>
@@ -217,7 +218,17 @@
     document.getElementById('btnSave').disabled = true;
   }
 
+  let clearArmed = false;
   function clearNames() {
+    const btn = document.getElementById('btnClear');
+    if (!clearArmed) {
+      clearArmed = true;
+      btn.textContent = 'Click again to confirm';
+      setTimeout(() => { clearArmed = false; btn.textContent = 'Clear all names from DB'; }, 4000);
+      return;
+    }
+    clearArmed = false;
+    btn.textContent = 'Clear all names from DB';
     fetch('/api/names', { method: 'DELETE' })
       .then(r => { if (!r.ok) throw new Error(r.status); return r; })
       .then(() => {

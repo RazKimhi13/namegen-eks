@@ -27,7 +27,7 @@ resource "aws_iam_openid_connect_provider" "github" {
 locals {
   github_oidc_provider_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : "arn:aws:iam::${data.aws_caller_identity.current.account_id}:oidc-provider/token.actions.githubusercontent.com"
 
-  # ⚠️ GitHub changed the OIDC subject format on 2026-07-15: the `sub` claim
+  # NOTE: GitHub changed the OIDC subject format on 2026-07-15: the `sub` claim
   # now includes the NUMERIC owner ID and repository ID. A trust policy with
   # only the names fails with "Not authorized to perform
   # sts:AssumeRoleWithWebIdentity" (AWS's console template is still stale).

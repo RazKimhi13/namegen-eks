@@ -6,8 +6,9 @@
 #
 # terraform {
 #   backend "s3" {
-#     bucket = "<your-unique-tfstate-bucket>"
-#     key    = "namegen-eks/terraform.tfstate"
-#     region = "us-west-2"
+#     bucket       = "<your-unique-tfstate-bucket>"
+#     key          = "namegen-eks/terraform.tfstate"
+#     region       = "us-west-2"
+#     use_lockfile = true   # S3-native state locking (Terraform >= 1.10); prevents concurrent applies
 #   }
 # }

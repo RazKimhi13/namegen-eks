@@ -26,17 +26,30 @@ plane + 2 Auto Mode nodes + 1 NLB + one 8 GiB EBS volume) ≈ a few cents.
 
 ## CI/CD (GitHub Actions)
 - Repo `RazKimhi13/namegen-eks` (private), default branch `main`.
-- **`deploy-accesskeys.yml` (IAM user access keys — the officially taught path) ran GREEN**
+- **`deploy-accesskeys.yml` (IAM user access keys - the officially taught path) ran GREEN**
   (run `30692550577`, `build-and-deploy (access keys) → success`): OIDC-free auth → ECR login →
-  build → push → update-kubeconfig → apply → set image → rollout, all ✔. IAM user `namegen-ci` (the live run's
-  name; `scripts/02-setup-iam-user.sh` names it `namegen-github-actions` by default — either works) +
+  build → push → update-kubeconfig → apply → set image → rollout, all OK. IAM user `namegen-ci` (the live run's
+  name; `scripts/02-setup-iam-user.sh` names it `namegen-github-actions` by default - either works) +
   EKS access entry (`AmazonEKSClusterAdminPolicy`); secrets `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`.
-- **`deploy.yml` (OIDC, the more-secure default) is correctly configured** (provider
-  `token.actions.githubusercontent.com`, role `namegen-github-actions`, trust `repo:RazKimhi13/namegen-eks:ref:refs/heads/main`,
-  aud `sts.amazonaws.com`, access entry) but its FIRST run failed with
-  `Not authorized to perform sts:AssumeRoleWithWebIdentity` — this is AWS IAM's well-known
-  **eventual-consistency delay** on a just-created OIDC provider/role, not a config error; a re-run a
-  few minutes later assumes the role fine. Use either workflow (the access-key one is confirmed green here).
+- **`deploy.yml` (OIDC)** initially failed with `Not authorized to perform sts:AssumeRoleWithWebIdentity`.
+  Root cause (found later): GitHub changed the OIDC `sub` claim format on **2026-07-15** to include the
+  numeric owner/repository IDs, and the trust policy still used the old name-only format. Fixed - see
+  `docs/GITHUB-OIDC-ASSUME-ROLE.md` and the second deploy below.
+
+## Second full deploy - 2026-08-12 (OIDC end-to-end)
+
+A fresh cluster was created and this time the entire deploy ran through **`deploy.yml` (OIDC)** with the
+corrected trust policy - no static keys anywhere:
+- Run `31568870175`, job `deploy` **green in 3m04s**: assume-role (OIDC) → ECR login → build →
+  push `namegen:6322a51` → update-kubeconfig → apply + `set image` + rollout → Helm install of
+  `kube-prometheus-stack` (Prometheus + Grafana in-cluster).
+- App verified over the **NLB** URL: generate + save round-trips, and saved names still listed
+  **after a full page reload** (served from the Mongo StatefulSet's EBS volume).
+- **Grafana dashboards screenshotted with live data** (cluster + `namegen` namespace) via
+  `kubectl port-forward svc/monitoring-grafana 3000:80`.
+- Torn down the same hour; verified no leftover cluster / load balancers / EBS volumes.
+
+Screenshots for both deploys: `screenshots/` (see `screenshots/DEPLOY-EVIDENCE.md`).
 
 ## Teardown
 - `bash scripts/99-destroy.sh` → deleted the k8s resources (released the NLB + EBS), then

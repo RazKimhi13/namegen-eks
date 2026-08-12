@@ -40,4 +40,4 @@ echo
 echo ">> DONE. Add these as GitHub repo secrets (then use deploy-accesskeys.yml):"
 echo "     gh secret set AWS_ACCESS_KEY_ID     -R $GITHUB_REPO -b \"$AKID\""
 echo "     gh secret set AWS_SECRET_ACCESS_KEY -R $GITHUB_REPO -b \"$SAK\""
-echo ">> ⚠️ The secret key is shown ONCE. Store it now; never commit it."
+echo ">> NOTE: The secret key is shown ONCE. Store it now; never commit it."

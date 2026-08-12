@@ -4,7 +4,7 @@
 # WHY a port-forward and not a LoadBalancer: a monitoring dashboard has no business being
 # on the public internet. Grafana's Service is deliberately ClusterIP, so we tunnel to it.
 #
-# ⚠️ RUN THIS SOMEWHERE WITH A BROWSER.
+# NOTE: RUN THIS SOMEWHERE WITH A BROWSER.
 #    The forward lands on 127.0.0.1 of whatever machine runs the command. AWS CloudShell has
 #    no GUI, so port-forwarding there gives you nothing to look at. Use your laptop
 #    (Git Bash or WSL - the `export`/`$(...)` syntax below does not work in cmd.exe).

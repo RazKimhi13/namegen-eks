@@ -8,11 +8,10 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# App source
-COPY . .
+# App source (owned by the non-root user directly, no separate chown layer)
+COPY --chown=node:node . .
 
 # Run as the built-in non-root 'node' user (least privilege)
-RUN chown -R node:node /usr/src/app
 USER node
 
 EXPOSE 8080

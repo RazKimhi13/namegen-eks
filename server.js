@@ -61,7 +61,7 @@ app.delete('/api/names', async (req, res) => {
     res.status(200).send(result);
 });
 
-app.get('/api/names:id', async (req, res) => {
+app.get('/api/names/:id', async (req, res) => {
     const msg = `Getting name ${req.params.id}`;
     logger.info(msg);
     const result = await getPerson(req.params.id);
@@ -74,6 +74,6 @@ app.get('/api/random_name', (req, res) => {
     res.status(200).send(randomName);
 });
 
-server = app.listen(port, () => {
+const server = app.listen(port, () => {
     logger.info(`Node server is running on port ${port} at ${new Date()}`);
 });
