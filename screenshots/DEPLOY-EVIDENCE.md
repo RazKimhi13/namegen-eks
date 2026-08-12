@@ -30,3 +30,25 @@ GET /api/connection -> {"connectionInfo":{"host":"mongodb","port":27017,"name":"
 GET /api/random_name -> {"firstName":"Alexandrea","lastName":"Gerhold"}
 GET /api/names   -> [{"_id":"6a6db15ec4d21dd94fc8de9a","created":"2026-08-01T08:42:06.010Z","__v":0,"id":"6a6db15ec4d21dd94fc8de9a"},{"_id":"6a6db15fc4d21dd94fc8de9c","created":"2026-08-01T08:42:07.091Z","__v":0,"id":"6a
 ```
+
+---
+
+## Second full deploy - 2026-08-12 (OIDC pipeline + monitoring)
+
+Fresh EKS Auto Mode cluster, deployed end-to-end by the **OIDC** workflow (`deploy.yml`,
+run [31568870175](https://github.com/RazKimhi13/namegen-eks/actions/runs/31568870175), job `deploy` green in **3m04s**):
+checkout -> `sts:AssumeRoleWithWebIdentity` (post-2026-07-15 trust policy with numeric owner/repo IDs,
+NO static keys) -> docker build -> push ECR -> `kubectl apply` + `set image` + rollout -> Helm
+`kube-prometheus-stack` install. No access keys were used anywhere in this deploy.
+
+| Screenshot | Shows |
+|---|---|
+| `03-live-nlb-landing.png` | the restyled app served over the internet-facing **NLB** URL |
+| `04-live-nlb-generate-save.png` | generate + save round-trips against the API |
+| `05-live-nlb-persisted-after-reload.png` | 3 saved names still listed **after a full page reload** - data served from the MongoDB StatefulSet on its EBS PV |
+| `07-grafana-cluster-dashboard.png` | **Grafana + Prometheus** (in-cluster, Helm) - cluster compute dashboard with live data, `namegen`/`monitoring` namespaces visible |
+| `08-grafana-namegen-namespace-dashboard.png` | per-pod CPU/memory for the `namegen` namespace (mongodb-0 + 2 namegen replicas) |
+
+Grafana was accessed via `kubectl port-forward svc/monitoring-grafana 3000:80` (ClusterIP by design -
+the dashboard is never exposed publicly); admin password read from the `monitoring-grafana` Secret.
+Cluster destroyed after evidence capture, as always.
