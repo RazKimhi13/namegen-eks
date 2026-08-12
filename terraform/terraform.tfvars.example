@@ -8,8 +8,8 @@ cluster_version = "1.31"
 
 github_owner    = "RazKimhi13"
 github_repo     = "namegen-eks"
-github_owner_id = 111111111 # <- .owner.id
-github_repo_id  = 222222222 # <- .id
+github_owner_id = 140090370  # <- .owner.id (RazKimhi13)
+github_repo_id  = 1319104675 # <- .id (namegen-eks)
 github_branch   = "main"
 
 # Set to false if the account already has the GitHub OIDC provider
