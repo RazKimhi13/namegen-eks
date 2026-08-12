@@ -52,3 +52,6 @@ NO static keys) -> docker build -> push ECR -> `kubectl apply` + `set image` + r
 Grafana was accessed via `kubectl port-forward svc/monitoring-grafana 3000:80` (ClusterIP by design -
 the dashboard is never exposed publicly); admin password read from the `monitoring-grafana` Secret.
 Cluster destroyed after evidence capture, as always.
+
+| `09-github-actions-oidc-pipeline-green.png` | the OIDC pipeline run green (Status: Success, 3m10s) |
+| `10-github-actions-oidc-job-steps.png` | every job step green, incl. "Configure AWS credentials (OIDC - no static keys)" |
