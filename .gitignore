@@ -117,3 +117,9 @@ kubeconfig*
 .aws/
 
 QA-TODO.md
+
+# Terraform
+terraform/.terraform/
+*.tfstate
+*.tfstate.*
+terraform/terraform.tfvars
