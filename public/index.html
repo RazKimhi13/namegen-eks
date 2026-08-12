@@ -1,143 +1,266 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Random Name Generator and Saver</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-iYQeCzEYFbKjA/T2uDLTpkwGzCiq6soy8tYaI1GyVh/UjpbCx/TYkiZhlZB6+fzT" crossorigin="anonymous">
-</head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>namegen - Random Name Generator</title>
 <style>
-    #mainDiv {
-        list-style-type: upper-roman;
-        padding-left: 50px;
-        color: #000080;
-    }
+  /* the-folder design tokens (dark, OKLCH) */
+  :root {
+    --bg-canvas: oklch(0.169 0.002 230.81);
+    --bg-1:      oklch(0.193 0.002 230.81);
+    --bg-2:      oklch(0.216 0.003 230.82);
+    --bg-2-hover: oklch(0.238 0.003 230.83);
+    --bg-3:      oklch(0.238 0.003 230.83);
+    --border-1:  oklch(0.259 0.003 230.84);
+    --border-2:  oklch(0.342 0.005 230.86);
+    --text-1:    oklch(0.924 0.002 230.69);
+    --text-2:    oklch(0.846 0.004 230.72);
+    --text-3:    oklch(0.766 0.005 230.76);
+    --text-disabled: oklch(0.599 0.010 230.88);
+    --accent:        oklch(0.631 0.126 238.01);
+    --accent-hover:  oklch(0.741 0.100 233.89);
+    --accent-active: oklch(0.451 0.087 237.37);
+    --accent-bg:     oklch(0.203 0.030 232.24);
+    --accent-border: oklch(0.321 0.058 236.44);
+    --ok-text:   oklch(0.800 0.045 158);
+    --ok-bg:     oklch(0.270 0.045 155);
+    --ok-border: oklch(0.390 0.060 155);
+    --bad-text:   oklch(0.780 0.060 25);
+    --bad-bg:     oklch(0.280 0.050 25);
+    --bad-border: oklch(0.400 0.070 25);
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { color-scheme: dark; }
+  body {
+    background: var(--bg-canvas);
+    color: var(--text-2);
+    font: 14px/1.55 -apple-system, "Segoe UI", Roboto, Inter, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    display: flex; justify-content: center;
+    padding: 48px 16px;
+  }
+  ::selection { background: var(--accent-bg); color: var(--text-1); }
+
+  .app { width: 100%; max-width: 560px; }
+  .masthead { margin-bottom: 20px; }
+  .masthead h1 { color: var(--text-1); font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+  .masthead p { color: var(--text-3); font-size: 13px; margin-top: 2px; }
+
+  .card {
+    background: var(--bg-1);
+    border: 1px solid var(--border-1);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+  .card h2 {
+    color: var(--text-3);
+    font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 12px;
+  }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border-1);
+    background: var(--bg-2);
+    color: var(--text-1);
+    font: inherit; font-weight: 500; font-size: 13px;
+    cursor: pointer;
+    transition: background-color 120ms ease, border-color 120ms ease;
+  }
+  .btn:hover:not(:disabled) { background: var(--bg-2-hover); border-color: var(--border-2); }
+  .btn:disabled { color: var(--text-disabled); cursor: not-allowed; }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn-primary { background: var(--accent-active); border-color: var(--accent-border); }
+  .btn-primary:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: oklch(0.98 0 0); }
+
+  .name-readout {
+    display: flex; gap: 24px;
+    background: var(--bg-2);
+    border: 1px solid var(--border-1);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-top: 12px;
+    min-height: 62px;
+  }
+  .name-readout .field label { display: block; color: var(--text-3); font-size: 11px; }
+  .name-readout .field output { color: var(--text-1); font-size: 16px; font-weight: 600; }
+  .name-readout .placeholder { color: var(--text-disabled); font-size: 13px; align-self: center; }
+
+  .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  .msg {
+    display: none;
+    margin-top: 10px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    border: 1px solid transparent;
+  }
+  .msg.show { display: block; }
+  .msg.ok  { color: var(--ok-text);  background: var(--ok-bg);  border-color: var(--ok-border); }
+  .msg.bad { color: var(--bad-text); background: var(--bad-bg); border-color: var(--bad-border); }
+
+  .names { list-style: none; }
+  .names li {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border-1);
+    color: var(--text-1);
+    font-size: 13.5px;
+  }
+  .names li:last-child { border-bottom: none; }
+  .names li .idx { color: var(--text-disabled); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .empty { color: var(--text-disabled); font-size: 13px; padding: 6px 2px; }
+
+  .count-pill {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 6px;
+    background: var(--accent-bg);
+    border: 1px solid var(--accent-border);
+    color: var(--accent-hover);
+    font-size: 11px; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    margin-left: 8px;
+    vertical-align: 1px;
+  }
+
+  .footer { color: var(--text-disabled); font-size: 11.5px; margin-top: 16px; text-align: center; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
-<body onload="getNames()">
-<div id="mainDiv">
-<h1>Random Name Generator and Saver</h1>
-<p>1. Click this button to get a random name:<br/>
-    <button type="button" id="btnRandom"  onclick="getRandomName()">Get Random Name</button>
-    <br/>
-<div id="'randomName">
-    <span>First Name: </span><span id="firstName"></span>
-    <br/>
-    <span>Last Name: </span><span id="lastName"></span>
-</div>
-</p>
-<hr>
-<p>2. Click this button save the random name to a database:<br/>
-    <button id="btnSave" type="button" onclick="saveName()" disabled>Save Name</button>
-    <div id="saveResponse"></div>
-</p>
-<hr>
-<p>List of Names:<br/>
-    <!--
-    <button type="button" onclick="getNames()">See All Names</button>
-    <br/>
-    -->
-    <div id='namesList'></div>
-</p>
-<hr>
-<p>Optional: Clear the list data from the database:<br/>
-    <button type="button" onclick="clearNames()">Clear Names from DB</button>
-<div id="deleteResponse"></div>
+</head>
+<body>
+<div class="app">
+  <header class="masthead">
+    <h1>namegen</h1>
+    <p>Random name generator, persisted to MongoDB on EKS</p>
+  </header>
 
-</p>
+  <section class="card">
+    <h2>1 - Generate</h2>
+    <div class="actions">
+      <button type="button" id="btnRandom" class="btn btn-primary" onclick="getRandomName()">Get random name</button>
+      <button type="button" id="btnSave" class="btn" onclick="saveName()" disabled>Save to database</button>
+    </div>
+    <div class="name-readout" id="randomName">
+      <span class="placeholder" id="namePlaceholder">No name generated yet</span>
+      <div class="field" hidden><label>First name</label><output id="firstName"></output></div>
+      <div class="field" hidden><label>Last name</label><output id="lastName"></output></div>
+    </div>
+    <div class="msg" id="saveResponse"></div>
+  </section>
+
+  <section class="card">
+    <h2>Saved names<span class="count-pill" id="countPill">0</span></h2>
+    <div id="namesList"><p class="empty">Nothing saved yet.</p></div>
+    <div class="msg" id="deleteResponse"></div>
+  </section>
+
+  <section class="card">
+    <h2>Danger zone</h2>
+    <button type="button" class="btn" onclick="clearNames()">Clear all names from DB</button>
+  </section>
+
+  <p class="footer">namegen on EKS - Mongo StatefulSet + EBS - GitHub Actions to ECR to EKS</p>
 </div>
-</body>
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js">
-</script>
+
 <script>
-    function clearNames() {
-        $.ajax({
-            url: '/api/names',
-            type: 'DELETE',
-            success: function(data) {
-                document.getElementById('namesList').children[0].remove();
-                document.getElementById('deleteResponse').innerText = "All names have been deleted from database."
-                document.getElementById('firstName').innerText = ''
-                document.getElementById('lastName').innerText = '';
+  function showMsg(id, text, kind) {
+    const el = document.getElementById(id);
+    el.textContent = text;
+    el.className = 'msg show ' + kind;
+  }
+  function hideMsg(id) { document.getElementById(id).className = 'msg'; }
 
+  function setName(first, last) {
+    const has = Boolean(first || last);
+    document.getElementById('namePlaceholder').hidden = has;
+    document.querySelectorAll('.name-readout .field').forEach(f => f.hidden = !has);
+    document.getElementById('firstName').textContent = first || '';
+    document.getElementById('lastName').textContent = last || '';
+  }
 
-                //toggle the btnRandom and btnSave buttons
-                document.getElementById('btnRandom').disabled = false;
-                document.getElementById('btnSave').disabled = !document.getElementById('btnRandom').disabled ;
-            }
-        });
-    }
-
-
-    function getRandomName() {
-        const apiUrl = '/api/random_name';
-        fetch(apiUrl).then(response => {
-            return response.json();
-        }).then(data => {
-            document.getElementById('firstName').innerText = data.firstName;
-            document.getElementById('lastName').innerText = data.lastName;
-            // Work with JSON data here
-            logger.info(data);
-        }).catch(err => {
-            // Do something for an error here
-        });
-
-        //toggle the btnRandom and btnSave buttons
+  function getRandomName() {
+    fetch('/api/random_name')
+      .then(r => r.json())
+      .then(data => {
+        setName(data.firstName, data.lastName);
+        hideMsg('saveResponse');
         document.getElementById('btnRandom').disabled = true;
-        document.getElementById('btnSave').disabled = !document.getElementById('btnRandom').disabled ;
-    }
+        document.getElementById('btnSave').disabled = false;
+      })
+      .catch(() => showMsg('saveResponse', 'Could not reach the API.', 'bad'));
+  }
 
-    function saveName() {
-        const firstName = document.getElementById('firstName').innerText;
-        const lastName = document.getElementById('lastName').innerText;
-        const settings = {
-            "url": "/api/names",
-            "method": "POST",
-            "headers": {
-                "Content-Type": "application/json"
-            },
-            "data": JSON.stringify({"firstName":firstName,"lastName": lastName}),
-        };
-        $.ajax({
-            ...settings,
-            success: function (result) {
-                document.getElementById('saveResponse').innerText = `${firstName} ${lastName}: Name has been saved to database.`;
-                getNames();
-            },
-            error : function (){
-                document.getElementById('saveResponse').innerText = `Save did not happen.`;
-            }
-        })
-        //toggle the btnRandom and btnSave buttons
+  function saveName() {
+    const firstName = document.getElementById('firstName').textContent;
+    const lastName = document.getElementById('lastName').textContent;
+    fetch('/api/names', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ firstName, lastName })
+    })
+      .then(r => { if (!r.ok) throw new Error(r.status); return r; })
+      .then(() => {
+        showMsg('saveResponse', firstName + ' ' + lastName + ' saved to the database.', 'ok');
+        getNames();
+      })
+      .catch(() => showMsg('saveResponse', 'Save did not happen.', 'bad'));
+    document.getElementById('btnRandom').disabled = false;
+    document.getElementById('btnSave').disabled = true;
+  }
+
+  function clearNames() {
+    fetch('/api/names', { method: 'DELETE' })
+      .then(r => { if (!r.ok) throw new Error(r.status); return r; })
+      .then(() => {
+        showMsg('deleteResponse', 'All names have been deleted from the database.', 'ok');
+        setName('', '');
         document.getElementById('btnRandom').disabled = false;
-        document.getElementById('btnSave').disabled = !document.getElementById('btnRandom').disabled ;
-    }
+        document.getElementById('btnSave').disabled = true;
+        getNames();
+      })
+      .catch(() => showMsg('deleteResponse', 'Delete failed.', 'bad'));
+  }
 
-    function printNames(names) {
-        const parent = document.getElementById('namesList');
-        // clear the existing tree
-        if( parent.children && parent.children.length > 0){
-            parent.children[0].remove();
-        }
-        const ul = document.createElement("ul");
-        names.forEach( name => {
-            const li = document.createElement("li");
-            const text = document.createTextNode(`${name.firstName} ${name.lastName}`);
-            li.appendChild(text);
-            ul.appendChild(li);
-        })
-        parent.append(ul);
+  function printNames(names) {
+    const parent = document.getElementById('namesList');
+    parent.innerHTML = '';
+    document.getElementById('countPill').textContent = names.length;
+    if (!names.length) {
+      parent.innerHTML = '<p class="empty">Nothing saved yet.</p>';
+      return;
     }
+    const ul = document.createElement('ul');
+    ul.className = 'names';
+    names.forEach((name, i) => {
+      const li = document.createElement('li');
+      const text = document.createElement('span');
+      text.textContent = name.firstName + ' ' + name.lastName;
+      const idx = document.createElement('span');
+      idx.className = 'idx';
+      idx.textContent = String(i + 1).padStart(2, '0');
+      li.append(text, idx);
+      ul.appendChild(li);
+    });
+    parent.appendChild(ul);
+  }
 
-    function getNames() {
-        document.getElementById('deleteResponse').innerText = '';
-        const apiUrl = '/api/names';
-        fetch(apiUrl).then(response => {
-            return response.json();
-        }).then(data => {
-            printNames(data);
-            logger.info(data);
-        }).catch(err => {
-            // Do something for an error here
-        });
-    }
+  function getNames() {
+    fetch('/api/names')
+      .then(r => r.json())
+      .then(printNames)
+      .catch(() => {});
+  }
+
+  getNames();
 </script>
+</body>
 </html>
