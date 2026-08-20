@@ -49,7 +49,7 @@ flowchart TB
     graf -->|kubectl port-forward :3000\nNO public LoadBalancer| laptop[Your laptop browser]
 ```
 
-**Prometheus collects, Grafana visualises - and both run as pods *inside* the cluster**, which is
+**Prometheus collects, Grafana visualizes - and both run as pods *inside* the cluster**, which is
 why they can read cluster metrics directly. Installed with **Helm** (`kube-prometheus-stack` chart
 from ArtifactHub); config in `monitoring/values.yaml`; also installed by a step in the CI/CD workflow.
 

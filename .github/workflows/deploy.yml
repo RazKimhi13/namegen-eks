@@ -60,7 +60,7 @@ jobs:
           kubectl set image deployment/namegen namegen="$IMAGE" -n "$K8S_NAMESPACE"
           kubectl rollout status deployment/namegen -n "$K8S_NAMESPACE" --timeout=180s
 
-      # Monitoring (project requirement): Prometheus collects, Grafana visualises, both as
+      # Monitoring (project requirement): Prometheus collects, Grafana visualizes, both as
       # pods inside the cluster. `helm upgrade --install` is idempotent, so this is a no-op
       # once installed. The Grafana password + port-forward stay OUT of CI on purpose -
       # a pipeline should never print a password into its logs.

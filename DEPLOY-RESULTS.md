@@ -25,7 +25,7 @@ plane + 2 Auto Mode nodes + 1 NLB + one 8 GiB EBS volume) ≈ a few cents.
   (Raw capture: `screenshots/DEPLOY-EVIDENCE.md`.)
 
 ## CI/CD (GitHub Actions)
-- Repo `RazKimhi13/namegen-eks` (private), default branch `main`.
+- Repo `RazKimhi13/namegen-eks`, default branch `main`.
 - **`deploy-accesskeys.yml` (IAM user access keys - the officially taught path) ran GREEN**
   (run `30692550577`, `build-and-deploy (access keys) → success`): OIDC-free auth → ECR login →
   build → push → update-kubeconfig → apply → set image → rollout, all OK. IAM user `namegen-ci` (the live run's

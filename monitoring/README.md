@@ -15,7 +15,7 @@ official community chart **`prometheus-community/kube-prometheus-stack`**, which
 | Component | Role |
 |---|---|
 | **Prometheus** | collects + stores metrics (the time-series DB) |
-| **Grafana** | visualises them (the dashboard UI) |
+| **Grafana** | visualizes them (the dashboard UI) |
 | **kube-state-metrics** | exposes Kubernetes object state (deployments, pods, PVCs…) |
 | **node-exporter** | exposes per-node CPU / memory / disk / network |
 

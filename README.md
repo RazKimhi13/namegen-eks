@@ -1,29 +1,29 @@
-# Random Name Generator on EKS with a GitHub Actions CI/CD Pipeline
+# Random Name Generator on EKS
 
-![Node.js](https://img.shields.io/badge/Node.js-20-339933?logo=nodedotjs&logoColor=white)
-![MongoDB](https://img.shields.io/badge/MongoDB-3.6-47A248?logo=mongodb&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-alpine-2496ED?logo=docker&logoColor=white)
-![Kubernetes](https://img.shields.io/badge/Kubernetes-EKS%20Auto%20Mode-326CE5?logo=kubernetes&logoColor=white)
-![Terraform](https://img.shields.io/badge/Terraform-IaC-844FBA?logo=terraform&logoColor=white)
-![eksctl](https://img.shields.io/badge/eksctl-IaC-FF9900?logo=amazonwebservices&logoColor=white)
+![Kubernetes](https://img.shields.io/badge/Amazon%20EKS-Auto%20Mode-326CE5?logo=kubernetes&logoColor=white)
+![Terraform](https://img.shields.io/badge/Terraform-eksctl-844FBA?logo=terraform&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-OIDC-2088FF?logo=githubactions&logoColor=white)
-![Prometheus](https://img.shields.io/badge/Prometheus-metrics-E6522C?logo=prometheus&logoColor=white)
-![Grafana](https://img.shields.io/badge/Grafana-dashboards-F46800?logo=grafana&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-3.6-47A248?logo=mongodb&logoColor=white)
+![Grafana](https://img.shields.io/badge/Grafana%20+%20Prometheus-monitoring-F46800?logo=grafana&logoColor=white)
 
-Final project for the Analiza DevSecOps course.
+A small Node.js app (generate a random name, save it, list what you saved) running on Amazon EKS,
+with MongoDB as a StatefulSet on an EBS volume, reachable from the internet through a Network Load
+Balancer, and shipped by a GitHub Actions pipeline that builds the image, pushes it to ECR and rolls
+it out to the cluster.
 
-The **namegen** Node.js app (generate a random name, save it, list saved names) deployed to **Amazon
-EKS**, with **MongoDB** as a **StatefulSet backed by Persistent Volumes (EBS)**, exposed to the
-internet via an **NLB**, and shipped by a **GitHub Actions → ECR → EKS** pipeline. All
-Infrastructure-as-Code (`eksctl` Auto Mode) + declarative Kubernetes manifests.
+This is my final project for the Analiza DevSecOps course (cohort A599, August 2026). The app itself
+is deliberately trivial - the point of the exercise is everything around it: infrastructure as code,
+a stateful workload that keeps its data, a real deployment pipeline with no long-lived AWS keys, and
+monitoring you can actually look at.
 
-> App source: [redhat-developer-demos/namegen](https://github.com/redhat-developer-demos/namegen)
-> (vendored into this repo root, per the brief). Node.js + MongoDB; listens on **8080**; reads **`MONGODB_URL`**.
+The app comes from [redhat-developer-demos/namegen](https://github.com/redhat-developer-demos/namegen)
+and is vendored into the repository root. It listens on port 8080 and reads its database connection
+string from `MONGODB_URL`.
 
 ## Architecture
 
-**CI/CD pipeline** - push to `main` → GitHub Actions authenticates to AWS via **OIDC** (short-lived
-STS credentials, no static keys) → builds the image → pushes to **ECR** → rolls it out on **EKS**:
+Pushing to `main` is the only thing that deploys. The runner authenticates to AWS with OIDC, so
+there are no access keys stored in GitHub:
 
 ```mermaid
 flowchart LR
@@ -36,149 +36,184 @@ flowchart LR
     eks -->|rolling update| pods[namegen pods]
 ```
 
-**Runtime** - internet → **NLB** → namegen pods → MongoDB **StatefulSet** on an **EBS** Persistent Volume:
+At runtime, traffic comes in through the NLB and the app talks to MongoDB over cluster DNS. The
+database keeps its data on its own EBS volume, so deleting the pod does not lose the saved names:
 
 ```mermaid
 flowchart TB
     user[User on the internet] -->|http :80| nlb[AWS NLB\ninternet-facing]
-    subgraph EKS[EKS Auto Mode cluster · namespace: namegen]
+    subgraph EKS[EKS Auto Mode cluster - namespace namegen]
         nlb -->|Service type=LoadBalancer| nsvc[Service: namegen]
-        nsvc -->|selector app=namegen| ndep[Deployment: namegen\n2 replicas · :8080]
+        nsvc -->|selector app=namegen| ndep[Deployment: namegen\n2 replicas - :8080]
         ndep -->|MONGODB_URL| msvc[Headless Service: mongodb]
-        msvc --> mss[StatefulSet: mongodb\nmongodb-0 · mongo:3.6]
-        mss -->|volumeClaimTemplates| pvc[(PVC → EBS gp3\nsurvives pod delete)]
+        msvc --> mss[StatefulSet: mongodb\nmongodb-0 - mongo:3.6]
+        mss -->|volumeClaimTemplates| pvc[(PVC to EBS gp3\nsurvives pod delete)]
     end
 ```
 
-Full detail (monitoring topology, object→requirement map, design rationale):
-[`ARCHITECTURE.md`](ARCHITECTURE.md) · editable draw.io: [`ARCHITECTURE.drawio`](ARCHITECTURE.drawio)
+The monitoring topology, the reasoning behind each object, and an editable draw.io version are in
+[`ARCHITECTURE.md`](ARCHITECTURE.md) and [`ARCHITECTURE.drawio`](ARCHITECTURE.drawio).
 
-## Requirements → how each is met (from the assignment brief)
+## The stack
 
-| Brief requirement | How it's met |
+| Layer | What I used |
 |---|---|
-| Provision infra with **Terraform or eksctl** (EKS **Auto Mode**) | **Both included:** `eksctl/cluster.yaml` (Auto Mode) **and** `terraform/` (Registry VPC + EKS modules, GitHub OIDC role, Access Entries, ECR - see [`terraform/README.md`](terraform/README.md)) |
-| **CI/CD via GitHub Actions** (auto build + deploy) | `.github/workflows/deploy.yml` (push → build → ECR → `kubectl set image`) |
-| Expose via a **Load Balancer (NLB)** | `k8s/40-namegen-service.yaml` (`type: LoadBalancer` + NLB annotations) |
-| DB as a **StatefulSet + Persistent Volumes** | `k8s/20-mongodb-statefulset.yaml` (`volumeClaimTemplates` → EBS gp3) |
-| **Monitoring dashboard with Grafana + Prometheus** | `monitoring/values.yaml` + `scripts/04-install-monitoring.sh` - Helm `kube-prometheus-stack` (Prometheus collects, Grafana visualises, both as in-cluster pods); also a step in the CI/CD workflow. Access via `scripts/05-grafana-portforward.sh`. See [`monitoring/README.md`](monitoring/README.md). |
-| Use **mongodb:3.6** | pinned in the StatefulSet |
-| App env `MONGODB_URL=mongodb://genuser:password@mongodb/namegen` | set in `k8s/30-namegen-deployment.yaml`; the init ConfigMap creates that user |
+| Cluster | Amazon EKS in Auto Mode, provisioned two ways: [`eksctl/cluster.yaml`](eksctl/cluster.yaml) or [`terraform/`](terraform/README.md) |
+| App | Node.js 20 on Alpine, non-root, built from the Dockerfile in the repo root |
+| Database | MongoDB 3.6 as a StatefulSet with `volumeClaimTemplates`, dynamically provisioned EBS gp3 |
+| Ingress | Service of type LoadBalancer with the NLB annotations, internet-facing, targeting pod IPs |
+| Registry | Amazon ECR, images tagged with the git SHA |
+| Pipeline | GitHub Actions, AWS auth over OIDC and STS ([`deploy.yml`](.github/workflows/deploy.yml)) |
+| Monitoring | `kube-prometheus-stack` via Helm: Prometheus scrapes, Grafana draws, both in-cluster |
 
-## Repo layout (matches the brief's submission checklist)
+## What the pipeline does
+
+Every push to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml):
+
+1. Assumes the `namegen-github-actions` IAM role through GitHub's OIDC provider and gets short-lived
+   STS credentials. Nothing permanent is stored in the repository secrets except the role ARN.
+2. Logs in to ECR, builds the image from the repository root and pushes it tagged with the commit
+   SHA, so every deployment is traceable to one commit.
+3. Writes a kubeconfig for the cluster (`aws eks update-kubeconfig`), which works because there is an
+   EKS access entry pointing at that same role.
+4. Applies `k8s/` and runs `kubectl set image` so the Deployment does a rolling update, then waits on
+   `kubectl rollout status` and fails the run if it does not converge in three minutes.
+5. Installs or upgrades the Prometheus and Grafana release with Helm. It uses `helm upgrade
+   --install`, so re-running the pipeline is a no-op rather than a reinstall. Fetching the Grafana
+   password and port-forwarding stay out of CI on purpose, since a pipeline should not print a
+   password into its log.
+
+There is a second workflow, [`deploy-accesskeys.yml`](.github/workflows/deploy-accesskeys.yml), which
+does the same thing with an IAM user and access keys. That is the version the course taught first and
+I kept it for comparison, but it only runs on manual dispatch. OIDC is the one that runs on push.
+
+## Repository layout
 
 ```
-.                              ← app SOURCE + Dockerfile in the root (per brief)
-├── server.js, package.json, public/, data/, tests/, ...   ← namegen source (vendored)
-├── Dockerfile                 ← builds the app (node:20-alpine, non-root, :8080)
-├── README.md                  ← this file (project description)
-├── ARCHITECTURE.md            ← architecture + CI/CD diagrams (mermaid); ARCHITECTURE.drawio is the editable version
-├── eksctl/                    ← IaC option A: EKS Auto Mode cluster (eksctl)
-│   └── cluster.yaml
-├── terraform/                 ← IaC option B: VPC + EKS Auto Mode + OIDC role + ECR (Registry modules)
-├── k8s/                       ← Kubernetes manifest files (YAML)
+.
+├── server.js, package.json, public/, data/, tests/   the app (vendored)
+├── Dockerfile                       node:20-alpine, non-root, port 8080
+├── eksctl/cluster.yaml              cluster as code, option A
+├── terraform/                       cluster as code, option B (VPC + EKS + OIDC role + ECR)
+├── k8s/
 │   ├── 00-namespace.yaml
-│   ├── 10-storageclass.yaml           ← EBS gp3 (Auto Mode)
-│   ├── 15-mongodb-init-configmap.yaml ← creates genuser/password on namegen
-│   ├── 20-mongodb-statefulset.yaml    ← mongodb:3.6 StatefulSet + headless Service + PV
-│   ├── 30-namegen-deployment.yaml     ← the app (MONGODB_URL, :8080)
-│   └── 40-namegen-service.yaml        ← NLB LoadBalancer
-├── .github/workflows/deploy.yml   ← CI/CD (incl. the monitoring install step)
-├── monitoring/                ← Grafana + Prometheus (Helm kube-prometheus-stack)
-│   ├── values.yaml                   ← chart values (EKS-tuned, no persistence, ClusterIP)
-│   └── README.md                     ← what it is, why not CloudWatch, how to screenshot it
-├── iam/                       ← GitHub OIDC trust policy + CI permission policy
-├── scripts/                   ← 00-create-ecr / 01-create-cluster / 02-setup-github-oidc /
-│                                03-build-and-deploy / 04-install-monitoring /
-│                                05-grafana-portforward / 99-destroy
-└── screenshots/               ← screenshots of the running app + the Grafana dashboard
+│   ├── 10-storageclass.yaml         EBS gp3 for Auto Mode
+│   ├── 15-mongodb-init-configmap.yaml   creates the genuser account on first boot
+│   ├── 20-mongodb-statefulset.yaml  mongo:3.6, headless Service, EBS volume claim
+│   ├── 30-namegen-deployment.yaml   the app, 2 replicas
+│   └── 40-namegen-service.yaml      internet-facing NLB
+├── .github/workflows/               deploy.yml (OIDC) and deploy-accesskeys.yml
+├── monitoring/                      Helm values for kube-prometheus-stack
+├── iam/                             OIDC trust policy and the CI permission policy
+├── scripts/                         create ECR, create cluster, wire auth, deploy, destroy
+└── screenshots/                     the app and the dashboards, running
 ```
 
-## Prerequisites
+## Running it yourself
 
-- **AWS CLI** configured (the scripts use `--profile personal`; adjust to your profile).
-- **eksctl**, **kubectl**, **docker**, **gh** installed. (Install eksctl via the official *Unix* script.)
+You need the AWS CLI configured, plus `eksctl`, `kubectl`, `docker` and `gh`. The scripts use
+`--profile personal` and region `us-west-2`; change those at the top of each script if yours differ.
 
-> **Cost discipline:** an EKS cluster bills ~$0.10/hr control plane + EC2 nodes + NLB. **Create →
-> work → destroy.** `scripts/99-destroy.sh` tears everything down (k8s first so the NLB + EBS release).
-
-## Run it - manual (fastest end-to-end)
+A cluster is not free: roughly $0.10/hour for the control plane, plus nodes, plus the load balancer.
+Create it, do the work, then destroy it. `scripts/99-destroy.sh` deletes the Kubernetes objects first
+so the NLB and the EBS volume are released before the cluster goes away.
 
 ```bash
-bash scripts/00-create-ecr.sh          # create the ECR repo
-bash scripts/01-create-cluster.sh      # ~15-20 min: EKS Auto Mode cluster
-bash scripts/03-build-and-deploy.sh    # build image → push ECR → apply k8s → set image → print NLB URL
-# → open the EXTERNAL-IP (NLB DNS) in a browser; generate + save names; they persist in Mongo
-bash scripts/04-install-monitoring.sh  # Helm: Prometheus + Grafana into the cluster
-bash scripts/05-grafana-portforward.sh # prints the admin password, opens Grafana on :3000
-bash scripts/99-destroy.sh             # tear it ALL down when done
+bash scripts/00-create-ecr.sh           # ECR repository
+bash scripts/01-create-cluster.sh       # EKS Auto Mode cluster, 15-20 minutes
+bash scripts/03-build-and-deploy.sh     # build, push, apply, print the NLB URL
+bash scripts/04-install-monitoring.sh   # Prometheus + Grafana via Helm
+bash scripts/05-grafana-portforward.sh  # prints the admin password, opens Grafana on :3000
+bash scripts/99-destroy.sh              # tear it all down
 ```
 
-## Run it - Terraform instead of eksctl (IaC option B)
+Terraform instead of eksctl:
 
 ```bash
 cd terraform
-cp terraform.tfvars.example terraform.tfvars   # fill in the numeric GitHub IDs
-terraform init && terraform apply              # VPC + EKS + OIDC role + Access Entry + ECR, ~15-20 min
+cp terraform.tfvars.example terraform.tfvars   # fill in the numeric GitHub owner and repo IDs
+terraform init && terraform apply              # VPC, EKS, OIDC role, access entry, ECR
 aws eks update-kubeconfig --region us-west-2 --name namegen-cluster
 kubectl apply -f ../k8s/
-cd .. && bash scripts/04-install-monitoring.sh
-# ... work ...
-terraform -chdir=terraform destroy             # ALWAYS tear down
+terraform destroy                              # when you are done
 ```
 
-## Run it - the graded CI/CD pipeline (GitHub Actions → ECR → EKS)
+To run the pipeline rather than deploying by hand, create the cluster and the ECR repository as
+above, then wire the GitHub side once:
 
-1. **Push this repo to GitHub**:
-   ```bash
-   gh repo create RazKimhi13/namegen-eks --private --source . --push
-   ```
-2. `bash scripts/00-create-ecr.sh` and `bash scripts/01-create-cluster.sh` (if not already done).
-3. **Wire secure GitHub→AWS auth** (OIDC role, no static keys) + grant it cluster access:
-   ```bash
-   bash scripts/02-setup-github-oidc.sh RazKimhi13/namegen-eks
-   gh secret set AWS_ROLE_ARN -R RazKimhi13/namegen-eks -b "<printed role arn>"
-   ```
-4. **Push to `main`** → Actions builds the image, pushes to ECR, rolls it out to EKS:
-   ```bash
-   git commit -am "deploy" && git push && gh run watch -R RazKimhi13/namegen-eks
-   ```
-5. Grab **screenshots** of the green pipeline + the live app + the Grafana dashboard into
-   `screenshots/`, then `scripts/99-destroy.sh`.
-
-## Submission checklist (from the brief)
-
-- [x] Source code in the root + Dockerfile
-- [x] Architecture + CI/CD **diagram (draw.io)** - `ARCHITECTURE.drawio` (open/edit at app.diagrams.net) + `ARCHITECTURE.md` (mermaid)
-- [x] `README.md` describing the project
-- [x] Folder with the **Terraform modules / eksctl yaml** - both: `terraform/` + `eksctl/`
-- [x] Folder with the **Kubernetes manifests** (`k8s/`)
-- [x] **Monitoring dashboard (Grafana + Prometheus)** - `monitoring/` + install/access scripts + CI step
-- [x] Folder with **screenshots** of the running app (`screenshots/`) - app over the NLB, DB persistence, Grafana dashboards with data, green pipeline
+```bash
+bash scripts/02-setup-github-oidc.sh RazKimhi13/namegen-eks
+gh secret set AWS_ROLE_ARN -R RazKimhi13/namegen-eks -b "<the role ARN it prints>"
+git commit -am "deploy" && git push        # Actions takes it from here
+```
 
 ## Screenshots
 
-The app served over the NLB, and names persisting across a full reload (read back from the
-MongoDB StatefulSet's EBS volume):
+The app over the NLB, and the saved names still there after a full page reload, which means they came
+back from the EBS volume behind the StatefulSet:
 
 | | |
 |---|---|
 | ![App over the NLB](screenshots/03-live-nlb-landing.png) | ![Persisted after reload](screenshots/05-live-nlb-persisted-after-reload.png) |
 
-The monitoring dashboard (Grafana + Prometheus, in-cluster) and the green OIDC pipeline:
+Grafana with live cluster data, and the pipeline run that deployed it:
 
 | | |
 |---|---|
 | ![Grafana cluster dashboard](screenshots/07-grafana-cluster-dashboard.png) | ![Pipeline green](screenshots/09-github-actions-oidc-pipeline-green.png) |
 
-Full set + capture notes: [`screenshots/`](screenshots/README.md) and
-[`screenshots/DEPLOY-EVIDENCE.md`](screenshots/DEPLOY-EVIDENCE.md).
+The full set, with the commands used to capture each one, is in
+[`screenshots/`](screenshots/README.md). What the deploys actually did, including the API round-trips
+against MongoDB, is written up in [`DEPLOY-RESULTS.md`](DEPLOY-RESULTS.md).
 
-Hardening notes + deliberate trade-offs: `HARDENING.md`. Live deploy evidence: `DEPLOY-RESULTS.md` + `screenshots/DEPLOY-EVIDENCE.md`.
+## Notes from building it
+
+Three things cost me real time and are worth writing down.
+
+**GitHub changed its OIDC subject format on 15 July 2026.** My first OIDC run failed with
+`Not authorized to perform sts:AssumeRoleWithWebIdentity` even though the trust policy looked right,
+and the template AWS generates in the console is still the old format. The `sub` condition now needs
+the numeric owner and repository IDs, matched with `StringEquals`:
+
+```
+repo:<owner>@<owner_id>/<repo>@<repo_id>:ref:refs/heads/main
+```
+
+Both IDs come from `https://api.github.com/repos/<owner>/<repo>` (`.owner.id` and `.id`).
+[`docs/GITHUB-OIDC-ASSUME-ROLE.md`](docs/GITHUB-OIDC-ASSUME-ROLE.md) has the full policy.
+
+**The load balancer annotation values are exact.** `aws-load-balancer-scheme` has to be
+`internet-facing`; `external` is deprecated and silently gets you Kubernetes' default internal load
+balancer with no public address, which looks like a broken cluster rather than a typo.
+`aws-load-balancer-nlb-target-type: ip` sends traffic to the pods instead of the nodes.
+
+**The database Service name is part of the app's configuration.** `MONGODB_URL` points at the host
+`mongodb`, so the headless Service has to be called exactly that. Rename one and the app crash-loops
+with a DNS error that reads like a network problem.
+
+Design decisions I made on purpose, including the ones where the assignment's requirements and
+security best practice pull in different directions, are listed in [`HARDENING.md`](HARDENING.md).
+
+## How it maps to the assignment
+
+| Requirement | Where |
+|---|---|
+| Provision the cluster with Terraform or eksctl, EKS Auto Mode | both: `eksctl/cluster.yaml` and `terraform/` |
+| CI/CD with GitHub Actions | `.github/workflows/deploy.yml` |
+| Expose the app through an NLB | `k8s/40-namegen-service.yaml` |
+| Database as a StatefulSet with Persistent Volumes | `k8s/20-mongodb-statefulset.yaml` |
+| Monitoring dashboard with Grafana and Prometheus | `monitoring/`, plus a step in the workflow |
+| MongoDB 3.6 | pinned in the StatefulSet |
+| `MONGODB_URL=mongodb://genuser:password@mongodb/namegen` | `k8s/30-namegen-deployment.yaml`, with the init ConfigMap creating that user |
+| Diagram, README, manifests folder, screenshots | this file, `ARCHITECTURE.drawio`, `k8s/`, `screenshots/` |
 
 ## Troubleshooting
 
-- **NLB EXTERNAL-IP `<pending>`** - Auto Mode's LB controller takes 2-3 min; re-check `kubectl -n namegen get svc namegen`.
-- **Mongo pod Pending** - PVC waiting for an EBS volume; check `kubectl -n namegen get pvc` and that `ebs-gp3` exists.
-- **App can't reach Mongo** - the DB service must be named `mongodb` and the user `genuser` must exist (the init ConfigMap creates it on first boot on a fresh volume).
-- **CI `sts:AssumeRoleWithWebIdentity` denied** - since GitHub's **2026-07-15** OIDC change the trust policy `sub` must use the **numeric owner + repo IDs**: `repo:<owner>@<owner_id>/<repo>@<repo_id>:ref:refs/heads/main` with `StringEquals` (AWS's console template is stale). Get the IDs from `https://api.github.com/repos/<owner>/<repo>` (`.owner.id`, `.id`), then re-run `scripts/02-setup-github-oidc.sh` or `terraform apply`.
+- **The NLB address stays `<pending>`.** Auto Mode's load balancer controller takes two or three
+  minutes. Re-check with `kubectl -n namegen get svc namegen`.
+- **The Mongo pod sits in `Pending`.** Its claim is waiting for a volume. Check
+  `kubectl -n namegen get pvc` and that the `ebs-gp3` StorageClass exists.
+- **The app cannot reach Mongo.** The Service has to be named `mongodb` and `genuser` has to exist.
+  The init ConfigMap only creates that user on a fresh volume, so a reused PVC keeps the old one.
+- **`sts:AssumeRoleWithWebIdentity` is denied.** The trust policy is in the pre-15-July format. See
+  the note above.
